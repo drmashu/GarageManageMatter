@@ -3,10 +3,11 @@ import { StorageService } from "@matter/main";
 import { LightingDevice } from "./devices/LightingDevice.js";
 import { VentilationDevice } from "./devices/VentilationDevice.js";
 import { ShutterDevice } from "./devices/ShutterDevice.js";
+import { Gpio } from "./utils/GpioWrapper.js";
 import { CONFIG } from "./config.js";
 
 async function main() {
-    console.log("Starting GarageManage Matter Server...");
+    console.log("GarageManage Matter サーバーを起動しています...");
 
     const node = await ServerNode.create({
         id: "GarageManage",
@@ -33,33 +34,35 @@ async function main() {
         },
     });
 
-    // Environment context for storage
+    // ストレージ用の環境コンテキスト
     const environment = node.env;
     const storageService = environment.get(StorageService);
     
-    // Create or retrieve storage context
-    // Using simple approach compatible with mocks/impl
+    // ストレージコンテキストの作成または取得
+    // モック/実装と互換性のあるシンプルなアプローチを使用
     const storageContext = (storageService as any).createContext?.("GarageManage") || (storageService as any).open?.("GarageManage");
 
-    // Instantiate Devices
-    // Device constructors will be updated to accept objects
+    // デバイスのインスタンス化
     const lighting = new LightingDevice(CONFIG.PINS.LIGHTING);
     const ventilation = new VentilationDevice(CONFIG.PINS.VENTILATION);
-    const shutter = new ShutterDevice(storageContext);
+    const shutter = new ShutterDevice(storageContext, {
+        OPEN: CONFIG.PINS.SHUTTER.BUTTON_OPEN,
+        CLOSE: CONFIG.PINS.SHUTTER.BUTTON_CLOSE
+    });
 
-    // Add Devices to Server
-    // Devices created via Endpoint([]) should be compatible with node.add()
+    // サーバーにデバイスを追加
+    // Endpoint([])経由で作成されたデバイスは node.add() と互換性があるはずです
     await node.add(lighting.getMatterDevice());
     await node.add(ventilation.getMatterDevice());
     await node.add(shutter.getMatterDevice());
 
-    console.log("Devices added. Starting server...");
+    console.log("デバイスと物理ボタンの設定が完了しました。サーバーを開始します...");
 
     await node.start();
 
-    console.log("GarageManage Server is running!");
-    console.log("Pairing Code: 20202021");
-    // console.log("Make sure to run this with 'sudo' for GPIO access on Raspberry Pi.");
+    console.log("GarageManage サーバーが実行中です！");
+    console.log("ペアリングコード: 20202021");
+    // console.log("Raspberry PiでGPIOにアクセスするには 'sudo' で実行してください。");
 }
 
 main().catch(console.error);

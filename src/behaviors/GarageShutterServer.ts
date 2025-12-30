@@ -5,8 +5,8 @@ import { Gpio } from "../utils/GpioWrapper.js";
 import { CONFIG } from "../config.js";
 import { StorageContext } from "@matter/main";
 
-// Define the base class with features enabled
-// Lift + PositionAwareLift are essential for percentage control
+// 機能を有効化した基本クラスを定義
+// パーセンテージ制御にはリフト(Lift)と位置認識リフト(PositionAwareLift)が不可欠です
 const GarageShutterBase = WindowCoveringServer.with(
     WindowCovering.Feature.Lift,
     WindowCovering.Feature.PositionAwareLift
@@ -22,26 +22,26 @@ export class GarageShutterServer extends GarageShutterBase {
     private currentDistance: number = 0;
     private controlInterval: NodeJS.Timeout | null = null;
     
-    // Default Limits
+    // デフォルトの制限値
     private openDistance: number = CONFIG.SHUTTER.FULL_OPEN_DISTANCE_CM;
     private closedDistance: number = CONFIG.SHUTTER.FULL_CLOSED_DISTANCE_CM;
     
-    // We need a way to initialize or access storage. 
-    // Behaviors have access to this.context or similar, but storage persistence for custom fields
-    // usually requires using Managed State or manual storage access.
-    // For simplicity, we'll try to use the environment's storage if accessible, 
-    // or just rely on manual load if we can inject storage context.
-    // BUT Behaviors are instantiated by the framework.
-    // We can use `this.agent.context` or similar? 
-    // Let's stick to simple file-scope storage or static if needed, 
-    // but better: Use `this.context.storage` (if available in 0.15 API).
-    // Actually, `this.context` in a Behavior refers to the Endpoint's context?
+    // ストレージを初期化またはアクセスする方法が必要です。
+    // Behaviorはthis.contextなどにアクセスできますが、カスタムフィールドのストレージ永続化には
+    // 通常、Managed Stateまたは手動での破壊的アクセスが必要です。
+    // 簡略化のため、アクセス可能であれば環境のストレージを使用するか、
+    // ストレージコンテキストを注入できる場合は手動ロードに依存します。
+    // しかし、Behaviorはフレームワークによってインスタンス化されます。
+    // `this.agent.context`などが使えるかもしれません。
+    // 今はファイルスコープまたは静的なストレージで進めますが、
+    // より良い方法は `this.context.storage` を使うことです（0.15 APIで利用可能な場合）。
+    // 実際には、Behavior内の `this.context` はエンドポイントのコンテキストを参照します。
     
-    // Let's implement initialize() to hook up GPIOs
+    // GPIOを接続するためにinitialize()を実装します
     override async initialize() {
         await super.initialize();
         
-        console.log("GarageShutterServer: Initializing GPIOs...");
+        console.log("GarageShutterServer: GPIO を初期化中...");
         this.pinOpen = new Gpio(CONFIG.PINS.SHUTTER.OPEN, { mode: Gpio.OUTPUT });
         this.pinClose = new Gpio(CONFIG.PINS.SHUTTER.CLOSE, { mode: Gpio.OUTPUT });
         this.pinTrig = new Gpio(CONFIG.PINS.SHUTTER.TRIG, { mode: Gpio.OUTPUT });
@@ -61,43 +61,43 @@ export class GarageShutterServer extends GarageShutterBase {
             }
         });
 
-        // Trigger measurement loop? Or just on demand?
-        // Ideally we monitor distance while moving.
+        // 計測ループをトリガーしますか？それともオンデマンドですか？
+        // 理想的には、移動中に距離を監視します。
         
-        // Load Settings
-        // Note: For now we might not have easy access to the exact StorageContext we created in index.ts
-        // unless we pass it via options or similar. 
-        // We will skip loading from customized storage for this step and focus on logic correctness.
-        // If we need persistence, we can check how to access Endpoint storage.
+        // 設定の読み込み
+        // 注意: 現時点では、オプション等で渡さない限り、index.tsで作成した正確なStorageContextに
+        // 簡単にアクセスできない可能性があります。
+        // このステップではカスタムストレージからの読み込みをスキップし、ロジックの正確さに集中します。
+        // 永続化が必要な場合は、Endpointストレージへのアクセス方法を確認します。
     }
 
     /**
-     * Override executeCalibration to prevent default error and run our sequence.
+     * executeCalibrationをオーバーライドしてデフォルトのエラーを防ぎ、独自のシーケンスを実行します。
      */
     override async executeCalibration() {
-        console.log("GarageShutterServer: Starting Calibration Sequence...");
+        console.log("GarageShutterServer: キャリブレーションシーケンスを開始...");
         
-        // 1. Move to Open (UP) until stall
-        console.log("GarageShutterServer: Phase 1 - Opening...");
+        // 1. 停止するまで開く（UP）
+        console.log("GarageShutterServer: フェーズ1 - 開いています...");
         await this.moveUntilStall(MovementDirection.Open);
         const measuredOpen = await this.getStableMeasurement();
-        console.log(`GarageShutterServer: Measured Open Limit: ${measuredOpen}cm`);
+        console.log(`GarageShutterServer: 測定された全開リミット: ${measuredOpen}cm`);
         this.openDistance = measuredOpen;
 
-        // 2. Move to Close (DOWN) until stall
-        console.log("GarageShutterServer: Phase 2 - Closing...");
+        // 2. 停止するまで閉じる（DOWN）
+        console.log("GarageShutterServer: フェーズ2 - 閉じています...");
         await this.moveUntilStall(MovementDirection.Close);
         const measuredClosed = await this.getStableMeasurement();
-        console.log(`GarageShutterServer: Measured Closed Limit: ${measuredClosed}cm`);
+        console.log(`GarageShutterServer: 測定された全閉リミット: ${measuredClosed}cm`);
         this.closedDistance = measuredClosed;
 
-        // Save
-        console.log("GarageShutterServer: Calibration Complete. Saving...");
-        // TODO: Save to storage
+        // 保存
+        console.log("GarageShutterServer: キャリブレーション完了。保存中...");
+        // TODO: ストレージへの保存
     }
 
     /**
-     * Handle actual movement logic.
+     * 実際の移動ロジックを処理します。
      */
     override async handleMovement(
         type: MovementType,
@@ -105,12 +105,13 @@ export class GarageShutterServer extends GarageShutterBase {
         direction: MovementDirection,
         targetPercent100ths?: number
     ) {
-        // We only support Lift
+        // リフト(Lift)のみサポート
         if (type !== MovementType.Lift) return;
 
-        console.log(`GarageShutterServer: Moving ${direction === MovementDirection.Open ? 'OPEN' : 'CLOSE'} target=${targetPercent100ths}`);
+        const directionStr = direction === MovementDirection.Open ? '開' : '閉';
+        console.log(`GarageShutterServer: ${directionStr}方向に移動中。ターゲット: ${targetPercent100ths}`);
         
-        // Start moving
+        // 移動開始
         if (direction === MovementDirection.Open) {
             this.pinClose.digitalWrite(0);
             this.pinOpen.digitalWrite(1);
@@ -119,7 +120,7 @@ export class GarageShutterServer extends GarageShutterBase {
             this.pinClose.digitalWrite(1);
         }
 
-        // Monitoring Loop
+        // 監視ループ
         return new Promise<void>((resolve) => {
             if (this.controlInterval) clearInterval(this.controlInterval);
             
@@ -127,25 +128,25 @@ export class GarageShutterServer extends GarageShutterBase {
                 this.triggerMeasurement();
                 const dist = this.currentDistance;
                 
-                // Check if target reached
-                // Calculate current %
+                // ターゲット到達確認
+                // 現在の%を計算
                 const range = this.closedDistance - this.openDistance;
                 const currentP = ((dist - this.openDistance) / range) * 10000;
                 
-                // Update state
+                // 状態更新
                 this.state.currentPositionLiftPercent100ths = Math.max(0, Math.min(10000, Math.round(currentP)));
                 
-                // Target check logic
+                // ターゲットチェックロジック
                 if (targetPercent100ths !== undefined) {
                     const diff = targetPercent100ths - this.state.currentPositionLiftPercent100ths;
-                    if (Math.abs(diff) < 500) { // 5% tolerance
-                         console.log("GarageShutterServer: Target Reached");
+                    if (Math.abs(diff) < 500) { // 5% の許容誤差
+                         console.log("GarageShutterServer: ターゲットに到達しました");
                          this.handleStopMovement();
                          resolve();
                     }
                 }
                 
-                // Safety: Limit check?
+                // 安全性: 制限チェック？
                 
             }, 100);
         });
@@ -169,7 +170,7 @@ export class GarageShutterServer extends GarageShutterBase {
     }
 
     private async moveUntilStall(direction: MovementDirection) {
-        // Start moving
+        // 移動開始
         if (direction === MovementDirection.Open) {
             this.pinClose.digitalWrite(0);
             this.pinOpen.digitalWrite(1);
@@ -178,7 +179,7 @@ export class GarageShutterServer extends GarageShutterBase {
             this.pinClose.digitalWrite(1);
         }
         
-        // Monitor for stall (no change in distance for X seconds)
+        // ストール（X秒間距離の変化なし）を監視
         return new Promise<void>((resolve) => {
              let lastDist = this.currentDistance;
              let sameCount = 0;
@@ -194,9 +195,9 @@ export class GarageShutterServer extends GarageShutterBase {
                      lastDist = current;
                  }
                  
-                 // If stable for 2 seconds (20 * 100ms)
+                 // 2秒間安定している場合 (20 * 100ms)
                  if (sameCount > 20) {
-                     console.log("GarageShutterServer: Stall detected (End of travel)");
+                     console.log("GarageShutterServer: ストール検知 (移動終了)");
                      this.stopMotors();
                      clearInterval(interval);
                      resolve();
@@ -206,7 +207,7 @@ export class GarageShutterServer extends GarageShutterBase {
     }
 
     private async getStableMeasurement(): Promise<number> {
-        // Take average of 5 readings
+        // 5回の読み取り値の平均を取得
         let sum = 0;
         for(let i=0; i<5; i++) {
             this.triggerMeasurement();

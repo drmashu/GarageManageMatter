@@ -8,28 +8,52 @@ export class LightingDevice {
     private indicatorPin: any;
     private device: any; 
 
-    // Constructor accepts pin configuration object
-    constructor(pins: { MAIN: number, INDICATOR: number }) {
+    // コンストラクタはピン設定オブジェクトを受け取ります
+    constructor(pins: { MAIN: number, INDICATOR: number, BUTTON?: number }) {
         this.pin = new Gpio(pins.MAIN, { mode: Gpio.OUTPUT });
         this.pin.digitalWrite(0);
 
         this.indicatorPin = new Gpio(pins.INDICATOR, { mode: Gpio.OUTPUT });
-        // Default state usually based on main light. Assuming initial OFF -> Indicator ON
+        // デフォルト状態は通常メインライトに基づきます。初期OFF -> インジケータON と仮定
         this.indicatorPin.digitalWrite(1);
 
-        // Pass array of device definitions
+        // デバイス定義の配列を渡します（※@matter/mainのAPI変更により現在は単一の定義を渡しています）
         this.device = new Endpoint(OnOffLightDevice, { id: `light-${pins.MAIN}` });
 
-        // Setup listener for OnOff attribute changes
-        // Using 'any' type for device to access generated events
+        // OnOff属性変更のリスナーを設定
+        // 生成されたイベントにアクセスするためにデバイスに 'any' 型を使用
         const events = this.device.events;
         if (events.onOff && events.onOff.onOff$Changed) {
             events.onOff.onOff$Changed.on((on: boolean) => {
-                console.log(`LightingDevice: Turning ${on ? 'ON' : 'OFF'}`);
+                console.log(`LightingDevice: ${on ? 'ON' : 'OFF'} に切替`);
                 this.pin.digitalWrite(on ? 1 : 0);
                 
-                // Indicator logic: ON when light is OFF
+                // インジケータロジック: ライト消灯時にON
                 this.indicatorPin.digitalWrite(on ? 0 : 1);
+            });
+        }
+
+        // 物理ボタンの設定
+        if (pins.BUTTON !== undefined) {
+            const button = new Gpio(pins.BUTTON, {
+                mode: Gpio.INPUT,
+                pullUpDown: Gpio.PUD_UP,
+                alert: true
+            });
+
+            let lastPress = 0;
+            const DEBOUNCE_MS = 300;
+
+            button.on('alert', (level: number) => {
+                if (level === 0) { // 押下時
+                    const now = Date.now();
+                    if (now - lastPress > DEBOUNCE_MS) {
+                        lastPress = now;
+                        const current = this.device.state.onOff.onOff;
+                        console.log(`LightingDevice: 物理ボタンにより ${!current ? 'ON' : 'OFF'} に切替`);
+                        this.device.set({ onOff: { onOff: !current } });
+                    }
+                }
             });
         }
     }

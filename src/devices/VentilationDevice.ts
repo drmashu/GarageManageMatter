@@ -8,24 +8,48 @@ export class VentilationDevice {
     private indicatorPin: any;
     private device: any;
 
-    constructor(pins: { MAIN: number, INDICATOR: number }) {
+    constructor(pins: { MAIN: number, INDICATOR: number, BUTTON?: number }) {
         this.pin = new Gpio(pins.MAIN, { mode: Gpio.OUTPUT });
         this.pin.digitalWrite(0);
 
         this.indicatorPin = new Gpio(pins.INDICATOR, { mode: Gpio.OUTPUT });
-        this.indicatorPin.digitalWrite(0); // Initially OFF
+        this.indicatorPin.digitalWrite(0); // 初期OFF
 
-        // Pass array of device definitions
+        // デバイス定義の配列を渡します
         this.device = new Endpoint(OnOffLightDevice, { id: `vent-${pins.MAIN}` });
 
         const events = this.device.events;
         if (events.onOff && events.onOff.onOff$Changed) {
             events.onOff.onOff$Changed.on((on: boolean) => {
-                console.log(`VentilationDevice: Turning ${on ? 'ON' : 'OFF'}`);
+                console.log(`VentilationDevice: ${on ? 'ON' : 'OFF'} に切替`);
                 this.pin.digitalWrite(on ? 1 : 0);
                 
-                // Indicator logic: ON when ventilation is ON
+                // インジケータロジック: 換気扇がONの時にON
                 this.indicatorPin.digitalWrite(on ? 1 : 0);
+            });
+        }
+
+        // 物理ボタンの設定
+        if (pins.BUTTON !== undefined) {
+            const button = new Gpio(pins.BUTTON, {
+                mode: Gpio.INPUT,
+                pullUpDown: Gpio.PUD_UP,
+                alert: true
+            });
+
+            let lastPress = 0;
+            const DEBOUNCE_MS = 300;
+
+            button.on('alert', (level: number) => {
+                if (level === 0) {
+                    const now = Date.now();
+                    if (now - lastPress > DEBOUNCE_MS) {
+                        lastPress = now;
+                        const current = this.device.state.onOff.onOff;
+                        console.log(`VentilationDevice: 物理ボタンにより ${!current ? 'ON' : 'OFF'} に切替`);
+                        this.device.set({ onOff: { onOff: !current } });
+                    }
+                }
             });
         }
     }

@@ -1,35 +1,64 @@
 import { Endpoint } from "@matter/main";
 import { WindowCoveringDevice } from "@matter/main/devices/window-covering";
 import { GarageShutterServer } from "../behaviors/GarageShutterServer.js";
+import { Gpio } from "../utils/GpioWrapper.js";
 
 export class ShutterDevice {
     private device: any;
     
-    // We still accept storage context but since behavior manages state, 
-    // we might need to pass it differently or rely on behavior's own context.
-    // For now, keeping constructor signature compatible.
-    constructor(storageContext: any) {
-        // Create Endpoint using the custom Behavior
-        // WindowCoveringDevice.with(GarageShutterServer) replaces the default WindowCoveringServer implementation.
-        // BUT WindowCoveringDevice is likely a DeviceType definition, not a class we can easily 'with' like that?
-        // In Matter.js 0.15+, DeviceTypes are used with Endpoint constructor.
-        // To use custom behavior, we likely need to define a specialized device type or pass options.
+    // ストレージコンテキストを引き続き受け取りますが、Behaviorが状態を管理するため、
+    // 渡し方を変えるか、Behavior自身のコンテキストに頼る必要があるかもしれません。
+    // 現時点では、コンストラクタのシグネチャの互換性を維持しています。
+    constructor(storageContext: any, buttons?: { OPEN: number, CLOSE: number }) {
+        // カスタムBehaviorを使用してEndpointを作成します
+        // WindowCoveringDevice.with(GarageShutterServer) はデフォルトの WindowCoveringServer 実装を置き換えます。
+        // ただし、WindowCoveringDevice は DeviceType 定義であり、このように簡単に 'with' できるクラスではない可能性があります。
+        // Matter.js 0.15+ では、Endpoint コンストラクタで DeviceType が使用されます。
+        // カスタムBehaviorを使用するには、特殊なデバイスタイプを定義するか、オプションを渡す必要があります。
         
-        // Correct way often is:
+        // 正しい方法は通常以下の通りです：
         const CustomShutterDevice = WindowCoveringDevice.with(GarageShutterServer);
         
         this.device = new Endpoint(CustomShutterDevice, { 
             id: "shutter",
             windowCovering: {
-                // Initial state can be set here
-                // mode: { calibrationMode: true } // Example
+                // 初期状態をここで設定できます
+                // mode: { calibrationMode: true } // 例
             }
         });
         
-        // Pass storage context to the behavior?
-        // Behaviors are instantiated by the framework. 
-        // We might need to handle storage differently or inject it.
-        // For this step, we assume standard behavior loading.
+        // ストレージコンテキストをBehaviorに渡しますか？
+        // Behaviorはフレームワークによってインスタンス化されます。
+        // ストレージを別に処理するか、注入する必要があるかもしれません。
+        // このステップでは、標準的なBehaviorのロードを想定しています。
+
+        // 物理ボタンの設定
+        if (buttons) {
+            const setupShutterButton = (pin: number, target: number, label: string) => {
+                const button = new Gpio(pin, {
+                    mode: Gpio.INPUT,
+                    pullUpDown: Gpio.PUD_UP,
+                    alert: true
+                });
+
+                let lastPress = 0;
+                const DEBOUNCE_MS = 300;
+
+                button.on('alert', (level: number) => {
+                    if (level === 0) {
+                        const now = Date.now();
+                        if (now - lastPress > DEBOUNCE_MS) {
+                            lastPress = now;
+                            console.log(`ShutterDevice: 物理ボタン (${label}) により移動開始`);
+                            this.device.set({ windowCovering: { targetPositionLiftPercent100ths: target } });
+                        }
+                    }
+                });
+            };
+
+            setupShutterButton(buttons.OPEN, 0, "開");
+            setupShutterButton(buttons.CLOSE, 10000, "閉");
+        }
     }
 
     getMatterDevice() {

@@ -2,7 +2,7 @@ import type { Gpio as GpioType } from 'pigpio';
 
 let GpioClass: any;
 
-// Constants usually available on Gpio class
+// 通常 Gpio クラスで使用可能な定数
 const CONSTANTS = {
     INPUT: 0,
     OUTPUT: 1,
@@ -21,16 +21,16 @@ const CONSTANTS = {
 };
 
 try {
-    // Try to require pigpio only on Linux
+    // Linux上でのみ pigpio を要求するよう試行
     if (process.platform !== 'linux') {
         throw new Error("Not on Linux, forcing mock.");
     }
     const pigpio = require('pigpio');
     GpioClass = pigpio.Gpio;
 } catch (e) {
-    console.warn("Could not load pigpio, using mock implementation. (Expected if not on Raspberry Pi)");
+    console.warn("pigpio を読み込めませんでした。モック実装を使用します。(Raspberry Pi 以外では正常な動作です)");
     
-    // Mock Gpio class with static constants
+    // 静的な定数を持つモック Gpio クラス
     GpioClass = class MockGpio {
         static INPUT = CONSTANTS.INPUT;
         static OUTPUT = CONSTANTS.OUTPUT;
@@ -48,7 +48,7 @@ try {
         static EITHER_EDGE = CONSTANTS.EITHER_EDGE;
 
         constructor(gpio: number, options: any) {
-            console.log(`[MockGpio] Initialized pin ${gpio} with options`, JSON.stringify(options));
+            console.log(`[MockGpio] ピン ${gpio} を以下のオプションで初期化しました:`, JSON.stringify(options));
         }
         digitalWrite(level: number) {
             console.log(`[MockGpio] digitalWrite: ${level}`);
@@ -60,7 +60,7 @@ try {
             console.log(`[MockGpio] trigger: ${pulseLen}us level:${level}`);
         }
         on(event: string, callback: (...args: any[]) => void) {
-            console.log(`[MockGpio] Event listener added for ${event}`);
+            console.log(`[MockGpio] ${event} のイベントリスナーが追加されました`);
         }
         off(event: string, callback: (...args: any[]) => void) {}
         getMode() { return 0; }
