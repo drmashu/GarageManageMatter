@@ -3,27 +3,27 @@ export const CONFIG = {
     // GPIOピン割り当て (BCM番号)
     PINS: {
         LIGHTING: {
-            MAIN: 17,
-            INDICATOR: 5,
-            BUTTON: 4
+            BUTTON: 17,
+            MAIN: 27,
+            INDICATOR: 18,
         },
         VENTILATION: {
-            MAIN: 27,
-            INDICATOR: 6,
-            BUTTON: 18
+            BUTTON: 22,
+            MAIN: 24,
+            INDICATOR: 23,
         },
         SHUTTER: {
-            OPEN: 22,
-            CLOSE: 23,
-            TRIG: 24,
-            ECHO: 25,
-            BUTTON_OPEN: 12,
-            BUTTON_CLOSE: 13
+            BUTTON_OPEN: 5,
+            OPEN: 6,
+            BUTTON_CLOSE: 20,
+            CLOSE: 21,
+            TRIG: 12,
+            ECHO: 13,
         }
     },
     // シャッターキャリブレーション (距離 cm)
     SHUTTER: {
         FULL_OPEN_DISTANCE_CM: 10,  // シャッターが全開の時のセンサー距離
-        FULL_CLOSED_DISTANCE_CM: 100 // シャッターが全閉の時のセンサー距離
+        FULL_CLOSED_DISTANCE_CM: 200 // シャッターが全閉の時のセンサー距離
     }
 };

@@ -17,7 +17,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@matter/main": "0.15.6",
+    "@matter/main": "^0.15.6",
     "@matter/node": "0.15.6",
     "pigpio": "^3.3.1"
   },
