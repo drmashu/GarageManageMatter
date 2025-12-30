@@ -1,0 +1,30 @@
+{
+  "name": "garage-manage-matter",
+  "version": "1.0.0",
+  "description": "Matter-compatible garage management device for Raspberry Pi",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts"
+  },
+  "keywords": [
+    "matter",
+    "home-automation",
+    "raspberry-pi",
+    "gpio"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@matter/main": "0.15.6",
+    "@matter/node": "0.15.6",
+    "pigpio": "^3.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/pigpio": "*",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.3.2"
+  }
+}
