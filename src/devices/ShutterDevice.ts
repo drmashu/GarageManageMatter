@@ -2,9 +2,12 @@ import { Endpoint } from "@matter/main";
 import { WindowCoveringDevice } from "@matter/main/devices/window-covering";
 import { GarageShutterServer } from "../behaviors/GarageShutterServer.js";
 import { Gpio } from "../utils/GpioWrapper.js";
+import { CONFIG } from "../config.js";
 
 export class ShutterDevice {
     private device: any;
+    private buttonPinOpen: any;
+    private buttonPinClose: any;
     
     // ストレージコンテキストを引き続き受け取りますが、Behaviorが状態を管理するため、
     // 渡し方を変えるか、Behavior自身のコンテキストに頼る必要があるかもしれません。
@@ -34,30 +37,26 @@ export class ShutterDevice {
 
         // 物理ボタンの設定
         if (buttons) {
-            const setupShutterButton = (pin: number, target: number, label: string) => {
+            const setupShutterButton = (pin: number, target: number, label: string): any => {
                 const button = new Gpio(pin, {
                     mode: Gpio.INPUT,
                     pullUpDown: Gpio.PUD_UP,
                     alert: true
                 });
 
-                let lastPress = 0;
-                const DEBOUNCE_MS = 300;
+                button.glitchFilter(CONFIG.GLITCH_FILTER_NS);
 
                 button.on('alert', (level: number) => {
                     if (level === 0) {
-                        const now = Date.now();
-                        if (now - lastPress > DEBOUNCE_MS) {
-                            lastPress = now;
-                            console.log(`ShutterDevice: 物理ボタン (${label}) により移動開始`);
-                            this.device.set({ windowCovering: { targetPositionLiftPercent100ths: target } });
-                        }
+                        console.log(`ShutterDevice: 物理ボタン (${label}) により移動開始`);
+                        this.device.set({ windowCovering: { targetPositionLiftPercent100ths: target } });
                     }
                 });
+                return button;
             };
 
-            setupShutterButton(buttons.OPEN, 0, "開");
-            setupShutterButton(buttons.CLOSE, 10000, "閉");
+            this.buttonPinOpen = setupShutterButton(buttons.OPEN, 0, "開");
+            this.buttonPinClose = setupShutterButton(buttons.CLOSE, 10000, "閉");
         }
     }
 

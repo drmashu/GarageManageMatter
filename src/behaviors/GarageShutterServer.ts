@@ -1,9 +1,9 @@
+import { StorageService, StorageContext } from "@matter/main";
 import { WindowCoveringServer } from "@matter/node/behaviors/window-covering";
 import { WindowCovering } from "@matter/main/clusters/window-covering";
 import { MovementType, MovementDirection } from "@matter/node/behaviors/window-covering";
 import { Gpio } from "../utils/GpioWrapper.js";
 import { CONFIG } from "../config.js";
-import { StorageContext } from "@matter/main";
 
 // 機能を有効化した基本クラスを定義
 // パーセンテージ制御にはリフト(Lift)と位置認識リフト(PositionAwareLift)が不可欠です
@@ -25,17 +25,8 @@ export class GarageShutterServer extends GarageShutterBase {
     // デフォルトの制限値
     private openDistance: number = CONFIG.SHUTTER.FULL_OPEN_DISTANCE_CM;
     private closedDistance: number = CONFIG.SHUTTER.FULL_CLOSED_DISTANCE_CM;
-    
-    // ストレージを初期化またはアクセスする方法が必要です。
-    // Behaviorはthis.contextなどにアクセスできますが、カスタムフィールドのストレージ永続化には
-    // 通常、Managed Stateまたは手動での破壊的アクセスが必要です。
-    // 簡略化のため、アクセス可能であれば環境のストレージを使用するか、
-    // ストレージコンテキストを注入できる場合は手動ロードに依存します。
-    // しかし、Behaviorはフレームワークによってインスタンス化されます。
-    // `this.agent.context`などが使えるかもしれません。
-    // 今はファイルスコープまたは静的なストレージで進めますが、
-    // より良い方法は `this.context.storage` を使うことです（0.15 APIで利用可能な場合）。
-    // 実際には、Behavior内の `this.context` はエンドポイントのコンテキストを参照します。
+
+    private storage: StorageContext | undefined;
     
     // GPIOを接続するためにinitialize()を実装します
     override async initialize() {
@@ -60,6 +51,20 @@ export class GarageShutterServer extends GarageShutterBase {
                 }
             }
         });
+
+        // ストレージの初期化
+        const storageService = this.env.get(StorageService);
+        this.storage = (storageService as any).createContext?.("GarageShutter") || (storageService as any).open?.("GarageShutter");
+
+        if (this.storage) {
+            const savedOpen = await this.storage.get<number>("openDistance");
+            const savedClosed = await this.storage.get<number>("closedDistance");
+
+            if (savedOpen !== undefined) this.openDistance = savedOpen;
+            if (savedClosed !== undefined) this.closedDistance = savedClosed;
+            
+            console.log(`GarageShutterServer: ストレージから設定を読み込みました (Open: ${this.openDistance}, Closed: ${this.closedDistance})`);
+        }
 
         // 計測ループをトリガーしますか？それともオンデマンドですか？
         // 理想的には、移動中に距離を監視します。
@@ -93,7 +98,11 @@ export class GarageShutterServer extends GarageShutterBase {
 
         // 保存
         console.log("GarageShutterServer: キャリブレーション完了。保存中...");
-        // TODO: ストレージへの保存
+        if (this.storage) {
+            await this.storage.set("openDistance", this.openDistance);
+            await this.storage.set("closedDistance", this.closedDistance);
+            console.log("GarageShutterServer: キャリブレーションデータを保存しました");
+        }
     }
 
     /**
@@ -161,22 +170,19 @@ export class GarageShutterServer extends GarageShutterBase {
     }
 
     private stopMotors() {
-        this.pinOpen.digitalWrite(0);
-        this.pinClose.digitalWrite(0);
+        this.pinOpen.trigger(CONFIG.SHUTTER.BUTTON_TRIGGER_MS, 1);
     }
     
     private triggerMeasurement() {
-        this.pinTrig.trigger(10, 1);
+        this.pinTrig.trigger(CONFIG.SHUTTER.MEASUREMENT_TRIGGER_MS, 1);
     }
 
     private async moveUntilStall(direction: MovementDirection) {
         // 移動開始
         if (direction === MovementDirection.Open) {
-            this.pinClose.digitalWrite(0);
-            this.pinOpen.digitalWrite(1);
+            this.pinOpen.trigger(CONFIG.SHUTTER.BUTTON_TRIGGER_MS, 1);
         } else {
-            this.pinOpen.digitalWrite(0);
-            this.pinClose.digitalWrite(1);
+            this.pinClose.trigger(CONFIG.SHUTTER.BUTTON_TRIGGER_MS, 1);
         }
         
         // ストール（X秒間距離の変化なし）を監視

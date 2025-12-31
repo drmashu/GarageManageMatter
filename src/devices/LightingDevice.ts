@@ -2,11 +2,13 @@ import { Endpoint } from "@matter/main";
 import { OnOffLightDevice } from "@matter/main/devices/on-off-light";
 import { OnOffCluster } from "@matter/main/clusters/on-off";
 import { Gpio } from "../utils/GpioWrapper.js";
+import { CONFIG } from "../config.js";
 
 export class LightingDevice {
     private pin: any;
     private indicatorPin: any;
     private device: any; 
+    private buttonPin: any;
 
     // コンストラクタはピン設定オブジェクトを受け取ります
     constructor(pins: { MAIN: number, INDICATOR: number, BUTTON?: number }) {
@@ -35,24 +37,21 @@ export class LightingDevice {
 
         // 物理ボタンの設定
         if (pins.BUTTON !== undefined) {
-            const button = new Gpio(pins.BUTTON, {
+            this.buttonPin = new Gpio(pins.BUTTON, {
                 mode: Gpio.INPUT,
                 pullUpDown: Gpio.PUD_UP,
                 alert: true
             });
 
             let lastPress = 0;
-            const DEBOUNCE_MS = 300;
 
-            button.on('alert', (level: number) => {
+            this.buttonPin.glitchFilter(CONFIG.GLITCH_FILTER_NS);
+
+            this.buttonPin.on('alert', (level: number) => {
                 if (level === 0) { // 押下時
-                    const now = Date.now();
-                    if (now - lastPress > DEBOUNCE_MS) {
-                        lastPress = now;
-                        const current = this.device.state.onOff.onOff;
-                        console.log(`LightingDevice: 物理ボタンにより ${!current ? 'ON' : 'OFF'} に切替`);
-                        this.device.set({ onOff: { onOff: !current } });
-                    }
+                    const current = this.device.state.onOff.onOff;
+                    console.log(`LightingDevice: 物理ボタンにより ${!current ? 'ON' : 'OFF'} に切替`);
+                    this.device.set({ onOff: { onOff: !current } });
                 }
             });
         }

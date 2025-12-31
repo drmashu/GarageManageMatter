@@ -20,6 +20,44 @@ const CONSTANTS = {
     EITHER_EDGE: 2,
 };
 
+// 静的な定数を持つモック Gpio クラス
+class MockGpio {
+    static INPUT = CONSTANTS.INPUT;
+    static OUTPUT = CONSTANTS.OUTPUT;
+    static ALT0 = CONSTANTS.ALT0;
+    static ALT1 = CONSTANTS.ALT1;
+    static ALT2 = CONSTANTS.ALT2;
+    static ALT3 = CONSTANTS.ALT3;
+    static ALT4 = CONSTANTS.ALT4;
+    static ALT5 = CONSTANTS.ALT5;
+    static PUD_OFF = CONSTANTS.PUD_OFF;
+    static PUD_DOWN = CONSTANTS.PUD_DOWN;
+    static PUD_UP = CONSTANTS.PUD_UP;
+    static RISING_EDGE = CONSTANTS.RISING_EDGE;
+    static FALLING_EDGE = CONSTANTS.FALLING_EDGE;
+    static EITHER_EDGE = CONSTANTS.EITHER_EDGE;
+
+    constructor(gpio: number, options: any) {
+        console.log(`[MockGpio] ピン ${gpio} を以下のオプションで初期化しました:`, JSON.stringify(options));
+    }
+    digitalWrite(level: number) {
+        console.log(`[MockGpio] digitalWrite: ${level}`);
+    }
+    pwmWrite(dutyCycle: number) { 
+        console.log(`[MockGpio] pwmWrite: ${dutyCycle}`);
+    }
+    trigger(pulseLen: number, level: number) {
+        console.log(`[MockGpio] trigger: ${pulseLen}us level:${level}`);
+    }
+    on(event: string, callback: (...args: any[]) => void) {
+        console.log(`[MockGpio] ${event} のイベントリスナーが追加されました`);
+    }
+    off(event: string, callback: (...args: any[]) => void) {}
+    getMode() { return 0; }
+    mode(mode: number) {} 
+    glitchFilter(filter: number) {}
+}
+
 try {
     // Linux上でのみ pigpio を要求するよう試行
     if (process.platform !== 'linux') {
@@ -29,43 +67,11 @@ try {
     GpioClass = pigpio.Gpio;
 } catch (e) {
     console.warn("pigpio を読み込めませんでした。モック実装を使用します。(Raspberry Pi 以外では正常な動作です)");
-    
-    // 静的な定数を持つモック Gpio クラス
-    GpioClass = class MockGpio {
-        static INPUT = CONSTANTS.INPUT;
-        static OUTPUT = CONSTANTS.OUTPUT;
-        static ALT0 = CONSTANTS.ALT0;
-        static ALT1 = CONSTANTS.ALT1;
-        static ALT2 = CONSTANTS.ALT2;
-        static ALT3 = CONSTANTS.ALT3;
-        static ALT4 = CONSTANTS.ALT4;
-        static ALT5 = CONSTANTS.ALT5;
-        static PUD_OFF = CONSTANTS.PUD_OFF;
-        static PUD_DOWN = CONSTANTS.PUD_DOWN;
-        static PUD_UP = CONSTANTS.PUD_UP;
-        static RISING_EDGE = CONSTANTS.RISING_EDGE;
-        static FALLING_EDGE = CONSTANTS.FALLING_EDGE;
-        static EITHER_EDGE = CONSTANTS.EITHER_EDGE;
-
-        constructor(gpio: number, options: any) {
-            console.log(`[MockGpio] ピン ${gpio} を以下のオプションで初期化しました:`, JSON.stringify(options));
-        }
-        digitalWrite(level: number) {
-            console.log(`[MockGpio] digitalWrite: ${level}`);
-        }
-        pwmWrite(dutyCycle: number) { 
-            console.log(`[MockGpio] pwmWrite: ${dutyCycle}`);
-        }
-        trigger(pulseLen: number, level: number) {
-            console.log(`[MockGpio] trigger: ${pulseLen}us level:${level}`);
-        }
-        on(event: string, callback: (...args: any[]) => void) {
-            console.log(`[MockGpio] ${event} のイベントリスナーが追加されました`);
-        }
-        off(event: string, callback: (...args: any[]) => void) {}
-        getMode() { return 0; }
-        mode(mode: number) {} 
-    }
+    GpioClass = MockGpio;
 }
+
+// 外部で使用する Gpio 型の定義
+// pigpio の実際の型か MockGpio のいずれかとして扱えるようにします
+export type Gpio = GpioType | InstanceType<typeof MockGpio>;
 
 export { GpioClass as Gpio };

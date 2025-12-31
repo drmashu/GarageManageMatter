@@ -2,10 +2,11 @@ import { Endpoint } from "@matter/main";
 import { OnOffLightDevice } from "@matter/main/devices/on-off-light";
 import { OnOffCluster } from "@matter/main/clusters/on-off";
 import { Gpio } from "../utils/GpioWrapper.js";
+import { CONFIG } from "../config.js";
 
 export class VentilationDevice {
-    private pin: any;
-    private indicatorPin: any;
+    private pin: Gpio;
+    private indicatorPin: Gpio;
     private device: any;
 
     constructor(pins: { MAIN: number, INDICATOR: number, BUTTON?: number }) {
@@ -39,6 +40,8 @@ export class VentilationDevice {
 
             let lastPress = 0;
             const DEBOUNCE_MS = 300;
+
+            button.glitchFilter(CONFIG.GLITCH_FILTER_NS);
 
             button.on('alert', (level: number) => {
                 if (level === 0) {
