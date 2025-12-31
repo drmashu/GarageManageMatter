@@ -2,6 +2,7 @@
   "name": "garage-manage-matter",
   "version": "1.0.0",
   "description": "Matter-compatible garage management device for Raspberry Pi",
+  "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
