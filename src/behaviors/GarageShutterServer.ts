@@ -54,16 +54,22 @@ export class GarageShutterServer extends GarageShutterBase {
 
         // ストレージの初期化
         const storageService = this.env.get(StorageService);
-        this.storage = await ((storageService as any).createContext?.("GarageShutter") || (storageService as any).open?.("GarageShutter"));
-
-        if (this.storage) {
-            const savedOpen = await this.storage.get<number>("openDistance");
-            const savedClosed = await this.storage.get<number>("closedDistance");
-
-            if (savedOpen !== undefined) this.openDistance = savedOpen;
-            if (savedClosed !== undefined) this.closedDistance = savedClosed;
+        try {
+            // storageService.open() が標準的な方法です
+            // @ts-ignore: Matter.js versions might have slightly different StorageService/StorageContext APIs
+            this.storage = await (storageService as any).open("GarageShutter");
             
-            console.log(`GarageShutterServer: ストレージから設定を読み込みました (Open: ${this.openDistance}, Closed: ${this.closedDistance})`);
+            if (this.storage) {
+                const savedOpen = await this.storage.get<number>("openDistance");
+                const savedClosed = await this.storage.get<number>("closedDistance");
+
+                if (savedOpen !== undefined) this.openDistance = savedOpen;
+                if (savedClosed !== undefined) this.closedDistance = savedClosed;
+                
+                console.log(`GarageShutterServer: ストレージから設定を読み込みました (Open: ${this.openDistance}, Closed: ${this.closedDistance})`);
+            }
+        } catch (e) {
+            console.error("GarageShutterServer: ストレージの初期化中にエラーが発生しました:", e);
         }
 
         // 計測ループをトリガーしますか？それともオンデマンドですか？
