@@ -38,7 +38,7 @@ export class GarageShutterServer extends GarageShutterBase {
         this.pinTrig = new Gpio(CONFIG.PINS.SHUTTER.TRIG, { mode: Gpio.OUTPUT });
         this.pinEcho = new Gpio(CONFIG.PINS.SHUTTER.ECHO, { mode: Gpio.INPUT, alert: true });
 
-        this.stopMotors();
+        this.stopShutter();
 
         this.pinEcho.on('alert', (level: number, tick: number) => {
             if (level === 1) {
@@ -71,15 +71,6 @@ export class GarageShutterServer extends GarageShutterBase {
         } catch (e) {
             console.error("GarageShutterServer: ストレージの初期化中にエラーが発生しました:", e);
         }
-
-        // 計測ループをトリガーしますか？それともオンデマンドですか？
-        // 理想的には、移動中に距離を監視します。
-        
-        // 設定の読み込み
-        // 注意: 現時点では、オプション等で渡さない限り、index.tsで作成した正確なStorageContextに
-        // 簡単にアクセスできない可能性があります。
-        // このステップではカスタムストレージからの読み込みをスキップし、ロジックの正確さに集中します。
-        // 永続化が必要な場合は、Endpointストレージへのアクセス方法を確認します。
     }
 
     /**
@@ -128,11 +119,9 @@ export class GarageShutterServer extends GarageShutterBase {
         
         // 移動開始
         if (direction === MovementDirection.Open) {
-            this.pinClose.digitalWrite(0);
-            this.pinOpen.digitalWrite(1);
+            this.openShutter();
         } else {
-            this.pinOpen.digitalWrite(0);
-            this.pinClose.digitalWrite(1);
+            this.closeShutter();
         }
 
         // 監視ループ
@@ -167,16 +156,24 @@ export class GarageShutterServer extends GarageShutterBase {
         });
     }
 
+    private closeShutter() {
+        this.pinClose.trigger(CONFIG.SHUTTER.BUTTON_TRIGGER_MS, 1);
+    }
+
+    private openShutter() {
+        this.pinOpen.trigger(CONFIG.SHUTTER.BUTTON_TRIGGER_MS, 1);
+    }
+
     override async handleStopMovement() {
-        this.stopMotors();
+        this.stopShutter();
         if (this.controlInterval) {
             clearInterval(this.controlInterval);
             this.controlInterval = null;
         }
     }
 
-    private stopMotors() {
-        this.pinOpen.trigger(CONFIG.SHUTTER.BUTTON_TRIGGER_MS, 1);
+    private stopShutter() {
+        this.openShutter();
     }
     
     private triggerMeasurement() {
@@ -186,9 +183,9 @@ export class GarageShutterServer extends GarageShutterBase {
     private async moveUntilStall(direction: MovementDirection) {
         // 移動開始
         if (direction === MovementDirection.Open) {
-            this.pinOpen.trigger(CONFIG.SHUTTER.BUTTON_TRIGGER_MS, 1);
+            this.openShutter();
         } else {
-            this.pinClose.trigger(CONFIG.SHUTTER.BUTTON_TRIGGER_MS, 1);
+            this.closeShutter();
         }
         
         // ストール（X秒間距離の変化なし）を監視
@@ -210,7 +207,7 @@ export class GarageShutterServer extends GarageShutterBase {
                  // 2秒間安定している場合 (20 * 100ms)
                  if (sameCount > 20) {
                      console.log("GarageShutterServer: ストール検知 (移動終了)");
-                     this.stopMotors();
+                     this.stopShutter();
                      clearInterval(interval);
                      resolve();
                  }
