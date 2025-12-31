@@ -40,7 +40,7 @@ async function main() {
     
     // ストレージコンテキストの作成または取得
     // モック/実装と互換性のあるシンプルなアプローチを使用
-    const storageContext = (storageService as any).createContext?.("GarageManage") || (storageService as any).open?.("GarageManage");
+    const storageContext = await ((storageService as any).createContext?.("GarageManage") || (storageService as any).open?.("GarageManage"));
 
     // デバイスのインスタンス化
     const lighting = new LightingDevice(CONFIG.PINS.LIGHTING);

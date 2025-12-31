@@ -54,7 +54,7 @@ export class GarageShutterServer extends GarageShutterBase {
 
         // ストレージの初期化
         const storageService = this.env.get(StorageService);
-        this.storage = (storageService as any).createContext?.("GarageShutter") || (storageService as any).open?.("GarageShutter");
+        this.storage = await ((storageService as any).createContext?.("GarageShutter") || (storageService as any).open?.("GarageShutter"));
 
         if (this.storage) {
             const savedOpen = await this.storage.get<number>("openDistance");
